@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Barangay Search with Province & City</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+  <h1 class="text-3xl font-bold mb-4">Philippine Address</h1>
+
+<!-- Row 1: Barangay and City/Municipality -->
+<div class="w-full max-w-xl grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+  <input
+    id="searchBarangay"
+    type="text"
+    placeholder="🔍 Search Barangay name (min 3 chars)..."
+    class="p-3 rounded-xl border border-gray-300"
+  />
+  <input
+    id="searchCity"
+    type="text"
+    placeholder="🏙️ Search City/Municipality name (min 3 chars)..."
+    class="p-3 rounded-xl border border-gray-300"
+  />
+</div>
+
+<!-- Row 2: Province and IATA -->
+<div class="w-full max-w-xl grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+  <input
+    id="searchProvince"
+    type="text"
+    placeholder="🗺️ Search Province name (min 3 chars)..."
+    class="p-3 rounded-xl border border-gray-300"
+  />
+  <input
+    id="searchIATA"
+    type="text"
+    placeholder="🛫 Search IATA Code (min 2 chars)..."
+    class="p-3 rounded-xl border border-gray-300"
+  />
+</div>
+
+  <div id="results" class="w-full max-w-xl space-y-4"></div>
+
+<script>
+(async () => {
+  const [barangays, cities, municipalities, provinces, iataData] = await Promise.all([
+    fetch('barangays.json').then(r => r.json()),
+    fetch('cities.json').then(r => r.json()),
+    fetch('municipalities.json').then(r => r.json()),
+    fetch('provinces.json').then(r => r.json()),
+    fetch('iata.json').then(r => r.json()),
+  ]);
+
+  const cityMap = new Map(cities.map(c => [c.code, c]));
+  const muniMap = new Map(municipalities.map(m => [m.code, m]));
+  const provMap = new Map(provinces.map(p => [p.code, p]));
+  const iataMap = new Map(iataData.map(i => [i.province.trim().toLowerCase(), i.iata]));
+
+  function resolveLocation(barangay) {
+    const cityOrMuni = barangay.cityCode
+      ? cityMap.get(barangay.cityCode)
+      : muniMap.get(barangay.municipalityCode);
+
+    const province = cityOrMuni && provMap.get(cityOrMuni.provinceCode);
+    const provinceName = province?.name || 'Unknown';
+    const iataCode = iataMap.get(provinceName.trim().toLowerCase()) || 'N/A';
+
+    return {
+      cityMunicipalityName: cityOrMuni?.name || 'Unknown',
+      provinceName,
+      iataCode,
+    };
+  }
+
+  const barangayInput = document.getElementById('searchBarangay');
+  const cityInput = document.getElementById('searchCity');
+  const provinceInput = document.getElementById('searchProvince');
+  const iataInput = document.getElementById('searchIATA');
+  const resultsDiv = document.getElementById('results');
+
+  function showResults(matches) {
+    resultsDiv.innerHTML = '';
+    if (matches.length === 0) {
+      resultsDiv.innerHTML = `<p class="text-center text-gray-500">No results found.</p>`;
+      return;
+    }
+
+    matches.slice(0, 100).forEach(b => {
+      const loc = resolveLocation(b);
+      const div = document.createElement('div');
+      div.className = 'bg-white p-4 rounded-xl shadow';
+      div.innerHTML = `
+        <p><strong>Barangay:</strong> ${b.name}</p>
+        <p><strong>City/Municipality:</strong> ${loc.cityMunicipalityName}</p>
+        <p><strong>Province:</strong> ${loc.provinceName}</p>
+        <p><strong>IATA Code:</strong> ${loc.iataCode}</p>
+      `;
+      resultsDiv.appendChild(div);
+    });
+  }
+
+  function performSearch() {
+    const barangayQuery = barangayInput.value.trim().toLowerCase();
+    const cityQuery = cityInput.value.trim().toLowerCase();
+    const provinceQuery = provinceInput.value.trim().toLowerCase();
+    const iataQuery = iataInput.value.trim().toUpperCase();
+
+    let filtered = barangays;
+
+    if (barangayQuery.length >= 3) {
+      filtered = filtered.filter(b =>
+        b.name.toLowerCase().includes(barangayQuery)
+      );
+    }
+
+    if (cityQuery.length >= 3) {
+      const matchingCityCodes = [
+        ...cities.filter(c => c.name.toLowerCase().includes(cityQuery)).map(c => c.code),
+        ...municipalities.filter(m => m.name.toLowerCase().includes(cityQuery)).map(m => m.code)
+      ];
+
+      filtered = filtered.filter(b =>
+        (b.cityCode && matchingCityCodes.includes(b.cityCode)) ||
+        (b.municipalityCode && matchingCityCodes.includes(b.municipalityCode))
+      );
+    }
+
+    if (provinceQuery.length >= 3) {
+      filtered = filtered.filter(b => {
+        const loc = resolveLocation(b);
+        return loc.provinceName.toLowerCase().includes(provinceQuery);
+      });
+    }
+
+    if (iataQuery.length >= 2) {
+      filtered = filtered.filter(b => {
+        const loc = resolveLocation(b);
+        return loc.iataCode.toUpperCase().includes(iataQuery);
+      });
+    }
+
+    // If nothing is typed, clear results
+    if (
+      barangayQuery.length < 3 &&
+      cityQuery.length < 3 &&
+      provinceQuery.length < 3 &&
+      iataQuery.length < 2
+    ) {
+      resultsDiv.innerHTML = '';
+      return;
+    }
+
+    showResults(filtered);
+  }
+
+  barangayInput.addEventListener('input', performSearch);
+  cityInput.addEventListener('input', performSearch);
+  provinceInput.addEventListener('input', performSearch);
+  iataInput.addEventListener('input', performSearch);
+})();
+</script>
+
+
+</body>
+</html>
