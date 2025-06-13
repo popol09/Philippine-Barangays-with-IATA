@@ -12,28 +12,31 @@
   <!-- Total Result Count -->
   <p id="resultCount" class="text-lg text-gray-700 mb-4">Total Results: 0</p>
 
-  <!-- Row 1: Barangay, City/Municipality, Province -->
-  <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+  <!-- Shared grid classes -->
+  <div class="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <!-- Row 1 -->
     <input id="searchBarangay" type="text" placeholder="🔍 Search Barangay name (min 3 chars)..." class="p-3 rounded-xl border border-gray-300" />
     <input id="searchCity" type="text" placeholder="🏙️ Search City/Municipality name (min 3 chars)..." class="p-3 rounded-xl border border-gray-300" />
     <input id="searchProvince" type="text" placeholder="🗺️ Search Province name (min 3 chars)..." class="p-3 rounded-xl border border-gray-300" />
+    <input id="searchIATA" type="text" placeholder="🛫 Search IATA Code (min 2 chars)..." class="p-3 rounded-xl border border-gray-300" />
   </div>
 
-  <!-- Row 2: IATA, District, Region -->
-  <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-    <input id="searchIATA" type="text" placeholder="🛫 Search IATA Code (min 2 chars)..." class="p-3 rounded-xl border border-gray-300" />
+  <div class="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <!-- Row 2 -->
     <input id="searchDistrict" type="text" placeholder="🏛️ Search District (min 3 chars)..." class="p-3 rounded-xl border border-gray-300" />
     <input id="searchRegion" type="text" placeholder="🌐 Search Region (min 3 chars)..." class="p-3 rounded-xl border border-gray-300" />
-  </div>
+    <input id="searchIsland" type="text" placeholder="🏝️ Search Island Group..." class="flex-1 p-3 rounded-xl border border-gray-300" />
+    <button id="clearBtn" class="px-4 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 whitespace-nowrap">
+       Clear
+    </button>
 
-  <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
-    <!-- Optional Island Group -->
-    <input id="searchIsland" type="text" placeholder="🏝️ Search Island Group (min 3 chars)..." class="p-3 rounded-xl border border-gray-300" />
+    <!-- Filler to make columns match -->
+    <div></div>
   </div>
 
   <div id="results" class="w-full max-w-xl space-y-4"></div>
 
-  <script>
+<script>
   (async () => {
     const [barangays, cities, municipalities, provinces, iataData, districts, regions] = await Promise.all([
       fetch('barangays.json').then(r => r.json()),
@@ -108,8 +111,16 @@
     const iataInput = document.getElementById('searchIATA');
     const districtInput = document.getElementById('searchDistrict');
     const regionInput = document.getElementById('searchRegion');
-    const islandInput = document.getElementById('searchIsland'); // Optional input (if added to HTML)
+    const islandInput = document.getElementById('searchIsland');
     const resultsDiv = document.getElementById('results');
+
+    // ✅ Clear Button functionality (only island input for now)
+    const clearBtn = document.getElementById('clearBtn');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          location.reload(); // Refreshes the page
+        });
+      }
 
     function showResults(matches) {
       const countDisplay = document.getElementById('resultCount');
@@ -228,6 +239,7 @@
     if (islandInput) islandInput.addEventListener('input', performSearch);
   })();
 </script>
+
 
 </body>
 </html>
