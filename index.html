@@ -3,11 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Barangay Search with Province & City</title>
+  <title>Barangay Search with Province & City with IATA Code</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+  </script>
+  <style>
+    @media (min-width: 1024px) {
+      .grid-cols-2 > div:first-child {
+        padding-right: 1rem;
+      }
+      .grid-cols-2 > div:last-child {
+        height: 100%;
+      }
+    }
+  </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
-  <h1 class="text-3xl font-bold mb-4">Philippine Address</h1>
+  <h1 class="text-3xl font-bold mb-4">Philippine Barangay's with IATA Code</h1>
 
   <!-- Total Result Count -->
   <p id="resultCount" class="text-lg text-gray-700 mb-4">Total Results: 0</p>
@@ -122,6 +139,8 @@
         });
       }
 
+    const locationIQKey = 'pk.8400482e7940aa800d3cfdc9f29d672e'; // Replace with your actual key
+
     function showResults(matches) {
       const countDisplay = document.getElementById('resultCount');
       resultsDiv.innerHTML = '';
@@ -133,22 +152,74 @@
         return;
       }
 
-      matches.slice(0, 100).forEach(b => {
+      matches.slice(0, 100).forEach((b, index) => {
         const loc = resolveLocation(b);
+        const mapId = `map-${index}`;
+
+        // Build cleaned address
+        const parts = [
+          b.name,
+          loc.cityMunicipalityName,
+          loc.districtName !== 'N/A' ? loc.districtName : null,
+          loc.provinceName !== 'N/A' ? loc.provinceName : null,
+          'Philippines'
+        ];
+        const cleanAddress = parts.filter(Boolean).join(', ');
+
         const div = document.createElement('div');
-        div.className = 'bg-white p-4 rounded-xl shadow';
+        div.className = 'bg-white p-4 rounded-xl shadow grid grid-cols-1 lg:grid-cols-2 gap-4 items-start';
+
         div.innerHTML = `
-          <p><strong>Barangay:</strong> ${b.name}</p>
-          <p><strong>City/Municipality:</strong> ${loc.cityMunicipalityName}</p>
-          <p><strong>Province:</strong> ${loc.provinceName}</p>
-          <p><strong>District:</strong> ${loc.districtName}</p>
-          <p><strong>Region:</strong> ${loc.regionName}</p>
-          <p><strong>IATA Code:</strong> ${loc.iataCode}</p>
-          <p><strong>Island Group:</strong> ${loc.islandGroupName}</p>
+          <div>
+            <p><strong>Barangay:</strong> ${b.name}</p>
+            <p><strong>City/Municipality:</strong> ${loc.cityMunicipalityName}</p>
+            <p><strong>Province:</strong> ${loc.provinceName}</p>
+            <p><strong>District:</strong> ${loc.districtName}</p>
+            <p><strong>Region:</strong> ${loc.regionName}</p>
+            <p><strong>IATA Code:</strong> ${loc.iataCode}</p>
+            <p><strong>Island Group:</strong> ${loc.islandGroupName}</p>
+            <div class="mt-4 flex flex-col gap-2">
+              <button
+                class="bg-blue-500 text-white py-1.5 rounded hover:bg-blue-600 text-sm"
+                onclick="navigator.clipboard.writeText('${cleanAddress}')"
+              >
+                📋 Copy this Address
+              </button>
+              <button
+                class="bg-green-500 text-white py-1.5 rounded hover:bg-green-600 text-sm"
+                onclick="window.open('https://www.google.com/maps/search/${encodeURIComponent(cleanAddress)}', '_blank')"
+              >
+                🗺️ Open in Google Map
+              </button>
+            </div>
+          </div>
+          </div>
+          <div id="${mapId}" class="w-full h-64 rounded-lg"></div>
         `;
+
         resultsDiv.appendChild(div);
+
+        // Load map with LocationIQ
+        fetch(`https://us1.locationiq.com/v1/search.php?key=${locationIQKey}&q=${encodeURIComponent(cleanAddress)}&format=json`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.length > 0) {
+              const { lat, lon } = data[0];
+              const map = L.map(mapId).setView([lat, lon], 14);
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+              }).addTo(map);
+              L.marker([lat, lon]).addTo(map);
+            } else {
+              document.getElementById(mapId).innerHTML = '<p class="text-sm text-gray-500">Map not available.</p>';
+            }
+          })
+          .catch(() => {
+            document.getElementById(mapId).innerHTML = '<p class="text-sm text-gray-500">Map failed to load.</p>';
+          });
       });
     }
+
 
     function performSearch() {
       const barangayQuery = barangayInput.value.trim().toLowerCase();
